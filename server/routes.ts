@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./googleAuth";
 import { insertMessageSchema, updateUserSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -12,12 +12,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      res.json(user);
+      res.json(req.user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -27,7 +22,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
   app.put('/api/users/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const updates = updateUserSchema.parse(req.body);
       
       const updatedUser = await storage.updateUser(userId, updates);
@@ -40,7 +35,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/users/online-status', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { isOnline } = z.object({ isOnline: z.boolean() }).parse(req.body);
       
       await storage.updateUserOnlineStatus(userId, isOnline);
@@ -53,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/users/search', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { q } = z.object({ q: z.string().min(1) }).parse(req.query);
       
       const users = await storage.searchUsers(q, userId);
@@ -67,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat routes
   app.get('/api/chats', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const chats = await storage.getUserChats(userId);
       res.json(chats);
     } catch (error) {
@@ -78,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/chats', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { otherUserId } = z.object({ otherUserId: z.string() }).parse(req.body);
       
       const chat = await storage.getOrCreateChat(userId, otherUserId);
@@ -91,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/chats/:chatId/messages', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { chatId } = req.params;
       const { limit, offset } = z.object({
         limit: z.string().optional().transform(val => val ? parseInt(val) : 50),
@@ -112,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/chats/:chatId/messages', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { chatId } = req.params;
       const messageData = insertMessageSchema.parse(req.body);
       
@@ -131,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Typing indicators
   app.post('/api/chats/:chatId/typing', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { chatId } = req.params;
       const { isTyping } = z.object({ isTyping: z.boolean() }).parse(req.body);
       
@@ -145,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/chats/:chatId/typing', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { chatId } = req.params;
       
       const indicators = await storage.getTypingIndicators(chatId, userId);

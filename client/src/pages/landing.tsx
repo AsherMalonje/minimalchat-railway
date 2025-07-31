@@ -39,14 +39,14 @@ export default function Landing() {
 
             {/* Sign In Button */}
             <Button 
-              onClick={() => window.location.href = '/api/login'}
+              onClick={() => window.location.href = '/api/auth/google'}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors duration-200"
             >
-              Sign In to Continue
+              Sign In with Google
             </Button>
 
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-              Secure authentication powered by Replit
+              Secure authentication powered by Google
             </p>
           </CardContent>
         </Card>

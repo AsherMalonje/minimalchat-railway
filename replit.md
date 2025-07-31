@@ -2,11 +2,12 @@
 
 ## Overview
 
-MinimalChat is a modern, real-time messaging application built with a full-stack TypeScript architecture. The application features a React frontend with Tailwind CSS and shadcn/ui components, an Express.js backend, and PostgreSQL database with Drizzle ORM. It includes authentication via Replit's OIDC provider, real-time messaging capabilities, whisper messages with auto-expiration, typing indicators, and customizable user profiles.
+MinimalChat is a modern, real-time messaging application built with a full-stack TypeScript architecture. The application features a React frontend with Tailwind CSS and shadcn/ui components, an Express.js backend, and PostgreSQL database with Drizzle ORM. It includes authentication via Google OAuth, real-time messaging capabilities, whisper messages with auto-expiration, typing indicators, and customizable user profiles. The application is now configured for deployment on Railway.app with Supabase as the database provider.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+Deployment preference: Railway.app with Supabase database and Google OAuth authentication.
 
 ## System Architecture
 
@@ -28,17 +29,17 @@ Preferred communication style: Simple, everyday language.
 - **Error Handling**: Centralized error middleware
 
 ### Database Architecture
-- **Database**: PostgreSQL with Neon serverless driver
+- **Database**: PostgreSQL with Supabase (node-postgres driver)
 - **ORM**: Drizzle ORM with TypeScript-first schema definitions
 - **Migration Strategy**: Schema-first with drizzle-kit for migrations
-- **Connection Management**: Connection pooling with @neondatabase/serverless
+- **Connection Management**: Direct PostgreSQL client connection
 
 ## Key Components
 
 ### Authentication System
-- **Provider**: Replit OIDC integration for secure authentication
+- **Provider**: Google OAuth 2.0 integration for secure authentication
 - **Session Storage**: PostgreSQL-backed sessions with configurable TTL
-- **Middleware**: Route-level authentication guards
+- **Middleware**: Route-level authentication guards with Passport.js
 - **User Management**: Automatic user creation/updates on login
 
 ### Real-time Messaging
@@ -64,10 +65,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication Flow
 1. User visits landing page
-2. Clicks sign-in, redirected to Replit OIDC
-3. User authenticates with Replit
-4. Returns with authorization code
-5. Backend exchanges code for tokens
+2. Clicks sign-in, redirected to Google OAuth
+3. User authenticates with Google account
+4. Google returns user profile information
+5. Backend creates/updates user in database
 6. User session created and stored in PostgreSQL
 7. User redirected to main application
 
@@ -103,8 +104,8 @@ Preferred communication style: Simple, everyday language.
 - **Replit Integration**: Cartographer plugin, runtime error modals
 
 ### Authentication Dependencies
-- **OpenID Connect**: openid-client for OIDC integration
-- **Session Management**: express-session, connect-pg-simple
+- **Google OAuth**: passport-google-oauth20 for OAuth integration
+- **Session Management**: express-session, connect-pg-simple, passport.js
 - **Security**: Secure session cookies, CSRF protection
 
 ## Deployment Strategy
@@ -116,10 +117,11 @@ Preferred communication style: Simple, everyday language.
 4. Environment variables configured for production
 
 ### Environment Configuration
-- **Database**: DATABASE_URL for PostgreSQL connection
-- **Authentication**: REPLIT_DOMAINS, ISSUER_URL for OIDC
+- **Database**: DATABASE_URL for Supabase PostgreSQL connection
+- **Authentication**: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET for OAuth
 - **Sessions**: SESSION_SECRET for secure session encryption
 - **Runtime**: NODE_ENV for environment-specific behavior
+- **Deployment**: PORT for Railway.app hosting
 
 ### Production Considerations
 - Static file serving handled by Express in production
