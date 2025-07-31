@@ -11,7 +11,7 @@ import { useTheme } from "@/components/theme-provider";
 import { apiRequest } from "@/lib/queryClient";
 import type { ChatWithDetails, User as UserType } from "@shared/schema";
 
-function formatTime(date: Date | string | null) {
+function formatTime(date: Date | string | null | undefined) {
   if (!date) return "";
   const messageDate = new Date(date);
   const now = new Date();

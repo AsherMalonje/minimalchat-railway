@@ -19,7 +19,7 @@ function UserInitials({ user }: { user: User }) {
 }
 
 export function MessageBubble({ message, isOwn, currentUser }: MessageBubbleProps) {
-  const time = format(new Date(message.createdAt), "h:mm a");
+  const time = format(new Date(message.createdAt || new Date()), "h:mm a");
   
   if (isOwn) {
     return (

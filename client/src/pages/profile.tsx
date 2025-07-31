@@ -32,7 +32,7 @@ function UserInitials({ user }: { user: any }) {
     ? `${user.firstName} ${user.lastName}`
     : user.username || user.email || "U";
   
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
 export default function Profile() {
