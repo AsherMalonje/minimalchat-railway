@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
+import TodoPage from "@/pages/todo";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/chat/:chatId" component={Home} />
           <Route path="/profile" component={Home} />
+          <Route path="/todo" component={TodoPage} />
         </>
       )}
       <Route component={NotFound} />

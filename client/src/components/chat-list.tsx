@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, MessageCircle, Moon, Sun, User, Plus } from "lucide-react";
+import { Search, MessageCircle, Moon, Sun, User, Plus, CheckSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -132,6 +132,11 @@ export function ChatList() {
           <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
             <Search className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </Button>
+          <Link href="/todo">
+            <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+              <CheckSquare className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            </Button>
+          </Link>
           <Link href="/profile">
             <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
               <Avatar className="w-6 h-6">
