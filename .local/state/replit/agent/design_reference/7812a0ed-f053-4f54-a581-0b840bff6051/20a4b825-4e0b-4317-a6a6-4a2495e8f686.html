@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimalist Telegram Clone - MVP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'chat-blue': '#2563eb',
+                        'chat-gray': '#6b7280',
+                        'chat-green': '#10b981',
+                        'dark-bg': '#1f2937',
+                        'dark-surface': '#374151',
+                        'dark-border': '#4b5563',
+                    }
+                }
+            },
+            darkMode: 'class'
+        };
+    </script>
+</head>
+<body class="font-inter bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+<!-- Mobile Navigation Container -->
+<div class="max-w-md mx-auto bg-white dark:bg-dark-bg min-h-screen relative shadow-xl">
+
+    <!-- @COMPONENT: AuthScreen [initial login/register view] -->
+    <div id="auth-screen" class="hidden flex flex-col justify-center items-center h-screen p-6">
+        <div class="w-full max-w-sm">
+            <!-- Logo/Brand -->
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-chat-blue rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-comment-dots text-white text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">MinimalChat</h1>
+                <p class="text-gray-600 dark:text-gray-400 mt-2">Simple, secure messaging</p>
+            </div>
+
+            <!-- Auth Form -->
+            <div class="space-y-4">
+                <div>
+                    <input type="email" placeholder="Email or phone number" 
+                           class="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-chat-blue focus:border-transparent bg-white dark:bg-dark-surface text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400">
+                </div>
+                <div>
+                    <input type="password" placeholder="Password" 
+                           class="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-chat-blue focus:border-transparent bg-white dark:bg-dark-surface text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400">
+                </div>
+                <button class="w-full bg-chat-blue text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200">
+                    Sign In
+                </button>
+                <div class="text-center">
+                    <button class="text-chat-blue hover:underline">Don't have an account? Sign up</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: AuthScreen -->
+
+    <!-- @COMPONENT: ChatListScreen [main chat list view] -->
+    <div id="chat-list-screen" class="flex flex-col h-screen">
+        <!-- Header -->
+        <div class="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center justify-between">
+            <h1 class="text-xl font-semibold">Chats</h1>
+            <div class="flex items-center space-x-3">
+                <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+                    <i class="fas fa-search text-gray-600 dark:text-gray-400"></i>
+                </button>
+                <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors" onclick="toggleProfile()">
+                    <!-- Profile picture placeholder -->
+                    <div class="w-6 h-6 bg-chat-blue rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white text-xs"></i>
+                    </div>
+                </button>
+                <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors" onclick="toggleTheme()">
+                    <i class="fas fa-moon text-gray-600 dark:text-gray-400 dark:hidden"></i>
+                    <i class="fas fa-sun text-yellow-400 hidden dark:block"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat List -->
+        <div class="flex-1 overflow-y-auto">
+            <!-- @MAP: chats.map(chat => ( -->
+            <div class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150" onclick="openChat('alice')">
+                <div class="flex items-center p-4 border-b border-gray-100 dark:border-gray-600">
+                    <div class="relative">
+                        <!-- Contact profile picture -->
+                        <div class="w-12 h-12 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
+                            <span class="text-white font-medium text-lg" data-bind="chat.participant.initials">A</span>
+                        </div>
+                        <!-- Online indicator -->
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-chat-green border-2 border-white dark:border-dark-surface rounded-full"></div>
+                    </div>
+                    <div class="ml-4 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-medium text-gray-900 dark:text-white truncate" data-bind="chat.participant.name">Alice Johnson</h3>
+                            <span class="text-xs text-gray-500 dark:text-gray-400" data-bind="chat.lastMessage.time">2:34 PM</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 truncate" data-bind="chat.lastMessage.text">Hey! How's your day going? 😊</p>
+                            <div class="flex items-center space-x-1">
+                                <div class="w-2 h-2 bg-chat-blue rounded-full" data-mock="true"></div>
+                                <i class="fas fa-check-double text-chat-blue text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150" onclick="openChat('bob')">
+                <div class="flex items-center p-4 border-b border-gray-100 dark:border-gray-600">
+                    <div class="relative">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
+                            <span class="text-white font-medium text-lg">B</span>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-medium text-gray-900 dark:text-white truncate">Bob Wilson</h3>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Yesterday</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 truncate">Thanks for the help with the project!</p>
+                            <i class="fas fa-check text-gray-400 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150" onclick="openChat('sarah')">
+                <div class="flex items-center p-4 border-b border-gray-100 dark:border-gray-600">
+                    <div class="relative">
+                        <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
+                            <span class="text-white font-medium text-lg">S</span>
+                        </div>
+                        <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-chat-green border-2 border-white dark:border-dark-surface rounded-full"></div>
+                    </div>
+                    <div class="ml-4 flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-medium text-gray-900 dark:text-white truncate">Sarah Chen</h3>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Monday</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                <i class="fas fa-microphone text-gray-400 mr-1"></i>
+                                Voice message (0:23)
+                            </p>
+                            <div class="w-2 h-2 bg-chat-blue rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_MAP )) -->
+        </div>
+
+        <!-- Floating Action Button -->
+        <button class="fixed bottom-6 right-6 w-14 h-14 bg-chat-blue text-white rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 hover:scale-105">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+    <!-- @END_COMPONENT: ChatListScreen -->
+
+    <!-- @COMPONENT: ChatRoomScreen [individual chat conversation] -->
+    <div id="chat-room-screen" class="hidden flex flex-col h-screen">
+        <!-- Chat Header -->
+        <div class="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center">
+            <button class="mr-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors" onclick="backToChats()">
+                <i class="fas fa-arrow-left text-gray-600 dark:text-gray-400"></i>
+            </button>
+            <div class="flex items-center flex-1">
+                <div class="relative">
+                    <div class="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
+                        <span class="text-white font-medium">A</span>
+                    </div>
+                    <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-chat-green border-2 border-white dark:border-dark-surface rounded-full"></div>
+                </div>
+                <div class="ml-3">
+                    <h3 class="font-medium text-gray-900 dark:text-white" data-bind="chat.participant.name">Alice Johnson</h3>
+                    <p class="text-xs text-chat-green" data-bind="chat.participant.status">Online</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+                    <i class="fas fa-phone text-gray-600 dark:text-gray-400"></i>
+                </button>
+                <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+                    <i class="fas fa-video text-gray-600 dark:text-gray-400"></i>
+                </button>
+                <button class="p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors">
+                    <i class="fas fa-ellipsis-v text-gray-600 dark:text-gray-400"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Messages Container -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-800">
+            <!-- @MAP: messages.map(message => ( -->
+            
+            <!-- Received Message -->
+            <div class="flex items-start space-x-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-white text-xs font-medium">A</span>
+                </div>
+                <div class="flex flex-col max-w-xs">
+                    <div class="bg-white dark:bg-dark-surface rounded-lg rounded-tl-none px-4 py-2 shadow-sm">
+                        <p class="text-gray-900 dark:text-white" data-bind="message.text">Hey! How's your day going? 😊</p>
+                    </div>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-2" data-bind="message.timestamp">2:34 PM</span>
+                </div>
+            </div>
+
+            <!-- Sent Message -->
+            <div class="flex items-end justify-end space-x-2">
+                <div class="flex flex-col max-w-xs">
+                    <div class="bg-chat-blue rounded-lg rounded-tr-none px-4 py-2 shadow-sm">
+                        <p class="text-white">Pretty good! Just finished a big project. How about you?</p>
+                    </div>
+                    <div class="flex items-center justify-end mt-1 mr-2 space-x-1">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">2:35 PM</span>
+                        <i class="fas fa-check-double text-chat-blue text-xs"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Whisper Message (Self-deleting) -->
+            <div class="flex items-end justify-end space-x-2">
+                <div class="flex flex-col max-w-xs">
+                    <div class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg rounded-tr-none px-4 py-2 shadow-sm relative">
+                        <p class="text-white">This message will self-destruct in 10s</p>
+                        <div class="absolute top-1 right-1">
+                            <i class="fas fa-clock text-white text-xs opacity-75"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end mt-1 mr-2 space-x-1">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">2:36 PM</span>
+                        <i class="fas fa-check text-purple-500 text-xs"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice Message -->
+            <div class="flex items-start space-x-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-white text-xs font-medium">A</span>
+                </div>
+                <div class="flex flex-col max-w-xs">
+                    <div class="bg-white dark:bg-dark-surface rounded-lg rounded-tl-none px-4 py-3 shadow-sm">
+                        <div class="flex items-center space-x-3">
+                            <button class="w-8 h-8 bg-chat-blue rounded-full flex items-center justify-center">
+                                <i class="fas fa-play text-white text-xs"></i>
+                            </button>
+                            <div class="flex-1">
+                                <div class="h-1 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                                    <div class="h-full bg-chat-blue w-1/3 rounded-full"></div>
+                                </div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 mt-1">0:23</span>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-2">2:37 PM</span>
+                </div>
+            </div>
+
+            <!-- Typing Indicator -->
+            <div class="flex items-start space-x-2" data-implementation="Show/hide based on typing state">
+                <div class="w-8 h-8 bg-gradient-to-br from-pink-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-white text-xs font-medium">A</span>
+                </div>
+                <div class="bg-white dark:bg-dark-surface rounded-lg rounded-tl-none px-4 py-3 shadow-sm">
+                    <div class="flex space-x-1">
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                        <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_MAP )) -->
+        </div>
+
+        <!-- Message Input -->
+        <div class="bg-white dark:bg-dark-surface border-t border-gray-200 dark:border-dark-border p-4">
+            <div class="flex items-end space-x-3">
+                <button class="p-2 text-gray-500 dark:text-gray-400 hover:text-chat-blue transition-colors">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <div class="flex-1">
+                    <div class="bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-2 flex items-center space-x-2">
+                        <input type="text" placeholder="Type a message..." 
+                               class="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                               data-event="input:handleTyping,keypress:handleSend">
+                        <button class="p-1 text-gray-500 dark:text-gray-400 hover:text-chat-blue transition-colors">
+                            <i class="fas fa-smile"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <!-- Whisper Mode Toggle -->
+                    <button class="p-2 text-gray-500 dark:text-gray-400 hover:text-purple-500 transition-colors" title="Whisper Mode">
+                        <i class="fas fa-clock"></i>
+                    </button>
+                    <!-- Voice Record Button -->
+                    <button class="p-2 text-gray-500 dark:text-gray-400 hover:text-chat-blue transition-colors" title="Voice Message">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <!-- Send Button -->
+                    <button class="p-2 bg-chat-blue text-white rounded-full hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: ChatRoomScreen -->
+
+    <!-- @COMPONENT: ProfileScreen [user profile management] -->
+    <div id="profile-screen" class="hidden flex flex-col h-screen">
+        <!-- Profile Header -->
+        <div class="bg-white dark:bg-dark-surface border-b border-gray-200 dark:border-dark-border px-4 py-3 flex items-center">
+            <button class="mr-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors" onclick="backToChats()">
+                <i class="fas fa-arrow-left text-gray-600 dark:text-gray-400"></i>
+            </button>
+            <h1 class="text-xl font-semibold">Profile</h1>
+        </div>
+
+        <!-- Profile Content -->
+        <div class="flex-1 overflow-y-auto p-6">
+            <!-- Profile Picture Section -->
+            <div class="text-center mb-8">
+                <div class="relative inline-block">
+                    <div class="w-24 h-24 bg-gradient-to-br from-chat-blue to-indigo-500 rounded-full flex items-center justify-center mx-auto">
+                        <span class="text-white text-2xl font-medium" data-bind="user.initials">JD</span>
+                    </div>
+                    <button class="absolute bottom-0 right-0 w-8 h-8 bg-chat-blue text-white rounded-full flex items-center justify-center">
+                        <i class="fas fa-camera text-xs"></i>
+                    </button>
+                </div>
+                <h2 class="text-xl font-semibold mt-4 text-gray-900 dark:text-white" data-bind="user.displayName">John Doe</h2>
+                <p class="text-gray-600 dark:text-gray-400" data-bind="user.email">john.doe@example.com</p>
+            </div>
+
+            <!-- Profile Settings -->
+            <div class="space-y-6">
+                <!-- Username -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Username</label>
+                    <input type="text" value="johndoe" 
+                           class="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-chat-blue focus:border-transparent bg-white dark:bg-dark-surface text-gray-900 dark:text-white">
+                </div>
+
+                <!-- Bio -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bio</label>
+                    <textarea rows="3" placeholder="Write something about yourself..." 
+                              class="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-chat-blue focus:border-transparent bg-white dark:bg-dark-surface text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"></textarea>
+                </div>
+
+                <!-- Color Tag -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Chat Bubble Color</label>
+                    <div class="flex space-x-3">
+                        <button class="w-10 h-10 bg-chat-blue rounded-full border-2 border-white dark:border-gray-700 shadow-lg"></button>
+                        <button class="w-10 h-10 bg-green-500 rounded-full border-2 border-gray-200 dark:border-gray-600"></button>
+                        <button class="w-10 h-10 bg-purple-500 rounded-full border-2 border-gray-200 dark:border-gray-600"></button>
+                        <button class="w-10 h-10 bg-pink-500 rounded-full border-2 border-gray-200 dark:border-gray-600"></button>
+                        <button class="w-10 h-10 bg-orange-500 rounded-full border-2 border-gray-200 dark:border-gray-600"></button>
+                    </div>
+                </div>
+
+                <!-- QR Code -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your QR Code</label>
+                    <div class="bg-white dark:bg-dark-surface p-4 rounded-lg border border-gray-200 dark:border-dark-border text-center">
+                        <div class="w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-lg mx-auto flex items-center justify-center mb-3">
+                            <i class="fas fa-qrcode text-4xl text-gray-400"></i>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Share this QR code for quick contact add</p>
+                    </div>
+                </div>
+
+                <!-- Settings Options -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-600">
+                        <span class="text-gray-900 dark:text-white">Notifications</span>
+                        <div class="relative">
+                            <input type="checkbox" class="sr-only" checked>
+                            <div class="w-10 h-6 bg-chat-blue rounded-full shadow-inner"></div>
+                            <div class="absolute w-4 h-4 bg-white rounded-full shadow top-1 right-1 transition-transform"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-600">
+                        <span class="text-gray-900 dark:text-white">Dark Mode</span>
+                        <div class="relative">
+                            <input type="checkbox" class="sr-only">
+                            <div class="w-10 h-6 bg-gray-300 rounded-full shadow-inner"></div>
+                            <div class="absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"></div>
+                        </div>
+                    </div>
+
+                    <button class="w-full text-left py-3 border-b border-gray-200 dark:border-gray-600">
+                        <span class="text-gray-900 dark:text-white">Privacy & Security</span>
+                        <i class="fas fa-chevron-right text-gray-400 float-right mt-1"></i>
+                    </button>
+
+                    <button class="w-full text-left py-3 border-b border-gray-200 dark:border-gray-600">
+                        <span class="text-gray-900 dark:text-white">Data & Storage</span>
+                        <i class="fas fa-chevron-right text-gray-400 float-right mt-1"></i>
+                    </button>
+                </div>
+
+                <!-- Logout Button -->
+                <button class="w-full bg-red-500 text-white py-3 rounded-lg font-medium hover:bg-red-600 transition-colors mt-6">
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: ProfileScreen -->
+
+</div>
+
+<script>
+    // TODO: Implement business logic, API calls, or state management
+    
+    (function() {
+        // Screen navigation
+        function showScreen(screenId) {
+            document.querySelectorAll('[id$="-screen"]').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        // Initialize with chat list
+        showScreen('chat-list-screen');
+
+        // Global functions for navigation
+        window.openChat = function(contactId) {
+            // TODO: Load specific chat data based on contactId
+            showScreen('chat-room-screen');
+        };
+
+        window.backToChats = function() {
+            showScreen('chat-list-screen');
+        };
+
+        window.toggleProfile = function() {
+            const currentScreen = document.querySelector('[id$="-screen"]:not(.hidden)').id;
+            if (currentScreen === 'profile-screen') {
+                showScreen('chat-list-screen');
+            } else {
+                showScreen('profile-screen');
+            }
+        };
+
+        window.toggleTheme = function() {
+            document.documentElement.classList.toggle('dark');
+            // TODO: Save theme preference to localStorage
+        };
+
+        // Message input handling
+        const messageInputs = document.querySelectorAll('input[placeholder="Type a message..."]');
+        messageInputs.forEach(input => {
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && this.value.trim()) {
+                    // TODO: Send message via Socket.IO
+                    console.log('Sending message:', this.value);
+                    this.value = '';
+                }
+            });
+
+            input.addEventListener('input', function() {
+                // TODO: Emit typing indicator via Socket.IO
+                console.log('User is typing...');
+            });
+        });
+
+        // Voice message recording
+        document.querySelectorAll('.fa-microphone').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // TODO: Implement voice recording with expo-av
+                console.log('Starting voice recording...');
+            });
+        });
+
+        // Whisper mode toggle
+        document.querySelectorAll('.fa-clock').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.classList.toggle('text-purple-500');
+                // TODO: Toggle whisper mode state
+                console.log('Whisper mode toggled');
+            });
+        });
+
+        // Color tag selection
+        document.querySelectorAll('[class*="bg-"][class*="rounded-full"]').forEach(colorBtn => {
+            if (colorBtn.classList.contains('w-10') && colorBtn.classList.contains('h-10')) {
+                colorBtn.addEventListener('click', function() {
+                    // Remove selection from all color buttons
+                    this.parentElement.querySelectorAll('button').forEach(btn => {
+                        btn.classList.remove('border-white', 'dark:border-gray-700');
+                        btn.classList.add('border-gray-200', 'dark:border-gray-600');
+                    });
+                    // Add selection to clicked button
+                    this.classList.remove('border-gray-200', 'dark:border-gray-600');
+                    this.classList.add('border-white', 'dark:border-gray-700');
+                    // TODO: Save color preference
+                });
+            }
+        });
+
+        // Initialize dark mode based on system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+    })();
+</script>
+
+</body>
+</html>
