@@ -6,12 +6,12 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
-// Get current logged-in user
+// Get logged-in user
 router.get("/me", requireAuth, async (req, res) => {
   res.json(req.user);
 });
 
-// Update username, privacy, avatar
+// Update profile: username, privacy, avatar
 router.put("/me", requireAuth, async (req, res) => {
   const { username, isPrivate, avatarUrl } = req.body;
   await db.update(users)

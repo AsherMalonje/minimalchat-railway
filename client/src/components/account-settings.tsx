@@ -4,9 +4,13 @@ export default function AccountSettings() {
   const [user, setUser] = useState<{ username: string; isPrivate: boolean; avatarUrl: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch logged-in user from backend
   useEffect(() => {
     fetch("/api/user/me")
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to fetch user");
+        return res.json();
+      })
       .then(data => {
         setUser(data);
         setLoading(false);
@@ -18,27 +22,30 @@ export default function AccountSettings() {
   }, []);
 
   if (loading) return <p>Loading account settings...</p>;
-  if (!user) return <p>Failed to load user.</p>;
+  if (!user) return <p>Failed to load user. Please log in.</p>;
 
   const [username, setUsername] = useState(user.username);
   const [isPrivate, setIsPrivate] = useState(user.isPrivate);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || "");
 
   async function saveChanges() {
-    await fetch("/api/user/me", {
+    const res = await fetch("/api/user/me", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, isPrivate, avatarUrl }),
     });
+    if (!res.ok) return alert("Failed to update profile");
+    const updated = await res.json();
+    setUser(prev => prev ? { ...prev, username, isPrivate, avatarUrl } : null);
     alert("Profile updated ✅");
   }
 
   async function deleteAccount() {
-    if (confirm("Are you sure? This cannot be undone!")) {
-      await fetch("/api/user/me", { method: "DELETE" });
-      alert("Account deleted ❌");
-      window.location.href = "/";
-    }
+    if (!confirm("Are you sure? This cannot be undone!")) return;
+    const res = await fetch("/api/user/me", { method: "DELETE" });
+    if (!res.ok) return alert("Failed to delete account");
+    alert("Account deleted ❌");
+    window.location.href = "/";
   }
 
   return (
