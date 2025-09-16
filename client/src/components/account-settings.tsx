@@ -1,6 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-export default function AccountSettings({ user }) {
+export default function AccountSettings() {
+  const [user, setUser] = useState<{ username: string; isPrivate: boolean; avatarUrl: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/user/me")
+      .then(res => res.json())
+      .then(data => {
+        setUser(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p>Loading account settings...</p>;
+  if (!user) return <p>Failed to load user.</p>;
+
   const [username, setUsername] = useState(user.username);
   const [isPrivate, setIsPrivate] = useState(user.isPrivate);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || "");

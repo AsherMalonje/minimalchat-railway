@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
-// Get current user profile
+// Get current logged-in user
 router.get("/me", requireAuth, async (req, res) => {
   res.json(req.user);
 });

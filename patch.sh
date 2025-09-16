@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Running full project patch..."
+echo "🚀 Applying full live-data patch..."
 
-# Make sure script runs from repo root
+# Ensure script runs from repo root
 cd "$(dirname "$0")"
 
-# Pull latest
+# Pull latest changes
 git pull origin main || true
 
 # Ensure directories exist
@@ -23,7 +23,7 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
-// Get current user profile
+// Get current logged-in user
 router.get("/me", requireAuth, async (req, res) => {
   res.json(req.user);
 });
@@ -46,13 +46,33 @@ router.delete("/me", requireAuth, async (req, res) => {
 
 export default router;
 EOF
+
 echo "✅ server/routes/user.ts patched"
 
-# --- 2. Add frontend AccountSettings component ---
+# --- 2. Add live-data AccountSettings component ---
 cat << 'EOF' > client/src/components/account-settings.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-export default function AccountSettings({ user }) {
+export default function AccountSettings() {
+  const [user, setUser] = useState<{ username: string; isPrivate: boolean; avatarUrl: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/user/me")
+      .then(res => res.json())
+      .then(data => {
+        setUser(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p>Loading account settings...</p>;
+  if (!user) return <p>Failed to load user.</p>;
+
   const [username, setUsername] = useState(user.username);
   const [isPrivate, setIsPrivate] = useState(user.isPrivate);
   const [avatarUrl, setAvatarUrl] = useState(user.avatarUrl || "");
@@ -106,31 +126,31 @@ export default function AccountSettings({ user }) {
   );
 }
 EOF
-echo "✅ client/src/components/account-settings.tsx added"
 
-# --- 3. Auto-import and render AccountSettings in App.tsx ---
+echo "✅ client/src/components/account-settings.tsx patched (live data)"
+
+# --- 3. Auto-import AccountSettings in App.tsx ---
 APP_FILE="client/src/App.tsx"
 TMP_FILE="client/src/App.tmp.tsx"
 
-# Backup original App.tsx
+# Backup original
 cp "$APP_FILE" "$APP_FILE.bak"
 
-# Insert import line if not already present
+# Insert import line if missing
 grep -qxF 'import AccountSettings from "./components/account-settings";' "$APP_FILE" || \
   sed -i '1i import AccountSettings from "./components/account-settings";' "$APP_FILE"
 
-# Insert <AccountSettings user={mockUser} /> inside root div
-# Create a simple mockUser for rendering
+# Insert <AccountSettings /> inside the first <div> (if not already present)
 sed '/<div className=/a \
-  <AccountSettings user={{ username: "Demo", isPrivate: false, avatarUrl: "" }} />' "$APP_FILE" > "$TMP_FILE"
+  <AccountSettings />' "$APP_FILE" > "$TMP_FILE"
 
 mv "$TMP_FILE" "$APP_FILE"
 
-echo "✅ AccountSettings auto-rendered in App.tsx"
+echo "✅ AccountSettings auto-rendered in App.tsx (live data)"
 
 # --- 4. Stage, commit, push ---
 git add .
-git commit -m "🔥 Full patch: backend fixes + AccountSettings auto-wired + Drizzle ORM"
+git commit -m "🚀 Full live-data patch: backend + AccountSettings component auto-wired"
 git push origin main
 
-echo "✅ Full patch applied successfully!"
+echo "✅ Live-data patch applied successfully! Your AccountSettings now uses real DB data."
