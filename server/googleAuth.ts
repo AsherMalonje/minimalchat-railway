@@ -14,7 +14,7 @@ export function getSession() {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing: true,
     ttl: sessionTtl,
     tableName: "sessions",
   });
@@ -25,7 +25,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" && !process.env.REPLIT_DB_URL,
+      secure: false,
+      sameSite: "lax",
       maxAge: sessionTtl,
     },
   });
@@ -89,6 +90,11 @@ export async function setupAuth(app: Express) {
       }
     );
   }
+
+  // Add a general login route that redirects to Google auth
+  app.get("/api/login", (req, res) => {
+    res.redirect("/api/auth/google");
+  });
 
   app.get("/api/logout", (req, res) => {
     req.logout(() => {

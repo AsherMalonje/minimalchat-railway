@@ -39,7 +39,7 @@ function NewChatDialog() {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const { data: searchResults } = useQuery({
+  const { data: searchResults } = useQuery<UserType[]>({
     queryKey: ["/api/users/search", { q: searchQuery }],
     enabled: searchQuery.length > 0,
   });
@@ -113,7 +113,7 @@ export function ChatList() {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   
-  const { data: chats, refetch } = useQuery({
+  const { data: chats, refetch } = useQuery<ChatWithDetails[]>({
     queryKey: ["/api/chats"],
     refetchInterval: 3000, // Poll every 3 seconds for new messages
   });

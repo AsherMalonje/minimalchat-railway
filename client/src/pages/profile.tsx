@@ -135,9 +135,9 @@ export default function Profile() {
     window.location.href = "/api/logout";
   };
 
-  if (!user) {
-    // Redirect to login if not authenticated
-    useEffect(() => {
+  // Handle authentication redirect properly
+  useEffect(() => {
+    if (!user) {
       toast({
         title: "Unauthorized",
         description: "You are logged out. Logging in again...",
@@ -146,8 +146,10 @@ export default function Profile() {
       setTimeout(() => {
         window.location.href = "/api/login";
       }, 500);
-    }, [toast]);
-    
+    }
+  }, [user, toast]);
+
+  if (!user) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
