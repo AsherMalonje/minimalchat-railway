@@ -46,6 +46,7 @@ export default function Profile() {
     bio: "",
     colorTag: "#2563eb",
   });
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
   // Initialize form data when user loads
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function Profile() {
   }, [user]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (updates: UpdateUser) => {
+    mutationFn: async (updates: UpdateUser & { profileImageUrl?: string }) => {
       await apiRequest("PUT", "/api/users/profile", updates);
     },
     onSuccess: () => {
@@ -91,7 +92,43 @@ export default function Profile() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate(formData);
+    const updates = { ...formData };
+    if (profileImage) {
+      (updates as any).profileImageUrl = profileImage;
+    }
+    updateProfileMutation.mutate(updates);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (limit to 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 2MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setProfileImage(result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleLogout = () => {
@@ -133,18 +170,28 @@ export default function Profile() {
           <div className="text-center mb-8">
             <div className="relative inline-block">
               <Avatar className="w-24 h-24 mx-auto">
-                <AvatarImage src={user.profileImageUrl || undefined} />
+                <AvatarImage src={profileImage || user?.profileImageUrl || undefined} />
                 <AvatarFallback 
                   className="text-white text-2xl font-medium"
                   style={{ backgroundColor: formData.colorTag }}
                 >
-                  <UserInitials user={user} />
+                  <UserInitials user={user || {}} />
                 </AvatarFallback>
               </Avatar>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id="profile-image-upload"
+                data-testid="input-profile-image"
+              />
               <Button
                 type="button"
                 size="sm"
                 className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 text-white rounded-full p-0"
+                onClick={() => document.getElementById('profile-image-upload')?.click()}
+                data-testid="button-upload-image"
               >
                 <Camera className="w-4 h-4" />
               </Button>
