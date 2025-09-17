@@ -25,7 +25,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" && !process.env.REPLIT_DB_URL,
       maxAge: sessionTtl,
     },
   });
@@ -56,7 +56,7 @@ export async function setupAuth(app: Express) {
             });
             return done(null, user);
           } catch (error) {
-            return done(error, null);
+            return done(error, false);
           }
         }
       )
