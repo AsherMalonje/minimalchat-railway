@@ -46,7 +46,10 @@ export const messages = pgTable("messages", {
   fromUserId: varchar("from_user_id").notNull(),
   toUserId: varchar("to_user_id").notNull(),
   content: text("content").notNull(),
-  messageType: varchar("message_type").default("text"), // text, voice
+  messageType: varchar("message_type").default("text"), // text, voice, file
+  fileName: varchar("file_name"), // For file messages
+  fileSize: integer("file_size"), // File size in bytes
+  mimeType: varchar("mime_type"), // MIME type for files
   isWhisper: boolean("is_whisper").default(false),
   whisperExpiresAt: timestamp("whisper_expires_at"),
   isSeen: boolean("is_seen").default(false),
@@ -122,6 +125,9 @@ export const insertMessageSchema = createInsertSchema(messages).pick({
   toUserId: true,
   content: true,
   messageType: true,
+  fileName: true,
+  fileSize: true,
+  mimeType: true,
   isWhisper: true,
 });
 

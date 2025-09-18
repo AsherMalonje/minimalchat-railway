@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
-import { Check, CheckCheck, Clock, Play, Pause } from "lucide-react";
+import { Check, CheckCheck, Clock, Play, Pause, FileText, Download, Image, Video, Music } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MessageWithUser, User } from "@shared/schema";
@@ -17,6 +17,90 @@ function UserInitials({ user }: { user: User }) {
     : user.username || user.email || "U";
   
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function FileMessageDisplay({ message, isOwn }: { message: MessageWithUser; isOwn: boolean }) {
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return Image;
+    if (mimeType.startsWith('video/')) return Video;
+    if (mimeType.startsWith('audio/')) return Music;
+    return FileText;
+  };
+
+  const formatFileSize = (bytes: number | null | undefined) => {
+    if (!bytes || bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const downloadFile = () => {
+    try {
+      const base64Data = message.content;
+      const byteCharacters = atob(base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: message.mimeType || 'application/octet-stream' });
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = message.fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    }
+  };
+
+  const FileIcon = getFileIcon(message.mimeType || '');
+
+  return (
+    <div className={`flex items-center space-x-3 p-3 rounded-lg border ${
+      isOwn 
+        ? "bg-white/10 border-white/20" 
+        : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+    }`}>
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+        isOwn ? "bg-white/20" : "bg-blue-100 dark:bg-blue-900"
+      }`}>
+        <FileIcon className={`w-5 h-5 ${
+          isOwn ? "text-white" : "text-blue-600 dark:text-blue-400"
+        }`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium truncate ${
+          isOwn ? "text-white" : "text-gray-900 dark:text-white"
+        }`}>
+          {message.fileName || 'Unknown file'}
+        </p>
+        <p className={`text-xs ${
+          isOwn ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+        }`}>
+          {formatFileSize(message.fileSize)}
+        </p>
+      </div>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={downloadFile}
+        className={`p-2 ${
+          isOwn 
+            ? "text-white hover:bg-white/20" 
+            : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600"
+        }`}
+        data-testid="button-file-download"
+      >
+        <Download className="w-4 h-4" />
+      </Button>
+    </div>
+  );
 }
 
 function VoiceMessagePlayer({ audioData, isOwn }: { audioData: string; isOwn: boolean }) {
@@ -127,6 +211,8 @@ export function MessageBubble({ message, isOwn, currentUser }: MessageBubbleProp
           >
             {message.messageType === "voice" ? (
               <VoiceMessagePlayer audioData={message.content} isOwn={true} />
+            ) : message.messageType === "file" ? (
+              <FileMessageDisplay message={message} isOwn={true} />
             ) : (
               <p>{message.content}</p>
             )}
@@ -162,6 +248,8 @@ export function MessageBubble({ message, isOwn, currentUser }: MessageBubbleProp
         <div className="bg-white dark:bg-gray-800 rounded-lg rounded-tl-none px-4 py-2 shadow-sm">
           {message.messageType === "voice" ? (
             <VoiceMessagePlayer audioData={message.content} isOwn={false} />
+          ) : message.messageType === "file" ? (
+            <FileMessageDisplay message={message} isOwn={false} />
           ) : (
             <p className="text-gray-900 dark:text-white">{message.content}</p>
           )}

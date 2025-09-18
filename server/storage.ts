@@ -24,6 +24,7 @@ export interface IStorage {
   updateUserOnlineStatus(id: string, isOnline: boolean): Promise<void>;
   
   // Chat operations
+  getChatById(chatId: string): Promise<Chat | undefined>;
   getOrCreateChat(user1Id: string, user2Id: string): Promise<Chat>;
   getUserChats(userId: string): Promise<ChatWithDetails[]>;
   
@@ -85,6 +86,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Chat operations
+  async getChatById(chatId: string): Promise<Chat | undefined> {
+    const [chat] = await db.select().from(chats).where(eq(chats.id, chatId));
+    return chat;
+  }
+
   async getOrCreateChat(user1Id: string, user2Id: string): Promise<Chat> {
     // Try to find existing chat
     const [existingChat] = await db

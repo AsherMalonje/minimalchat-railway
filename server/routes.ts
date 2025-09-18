@@ -111,9 +111,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { chatId } = req.params;
       const messageData = insertMessageSchema.parse(req.body);
       
+      // Derive toUserId from chatId for security
+      const chat = await storage.getChatById(chatId);
+      if (!chat) {
+        return res.status(404).json({ message: "Chat not found" });
+      }
+      
+      // Ensure user is part of this chat
+      if (chat.user1Id !== userId && chat.user2Id !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const toUserId = chat.user1Id === userId ? chat.user2Id : chat.user1Id;
+      
+      // Validate file messages
+      if (messageData.messageType === "file") {
+        // Check file size (max 10MB)
+        if (messageData.fileSize && messageData.fileSize > 10 * 1024 * 1024) {
+          return res.status(400).json({ message: "File size too large. Maximum size is 10MB." });
+        }
+        
+        // Check for required file metadata
+        if (!messageData.fileName || !messageData.mimeType) {
+          return res.status(400).json({ message: "File metadata is required for file messages" });
+        }
+        
+        // Validate MIME types (allow common file types)
+        const allowedTypes = [
+          'image/', 'video/', 'audio/', 'text/', 'application/pdf',
+          'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/zip', 'application/x-zip-compressed'
+        ];
+        
+        if (!allowedTypes.some(type => messageData.mimeType!.startsWith(type))) {
+          return res.status(400).json({ message: "File type not allowed" });
+        }
+      }
+      
       const message = await storage.createMessage({
         ...messageData,
         fromUserId: userId,
+        toUserId,
       });
       
       res.json(message);
