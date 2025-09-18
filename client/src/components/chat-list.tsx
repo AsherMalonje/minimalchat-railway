@@ -34,10 +34,13 @@ function UserInitials({ user }: { user: UserType }) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function NewChatDialog() {
+function NewChatDialog({ isOpen, setIsOpen }: { isOpen?: boolean; setIsOpen?: (open: boolean) => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  
+  const dialogOpen = isOpen ?? internalIsOpen;
+  const setDialogOpen = setIsOpen ?? setInternalIsOpen;
 
   const { data: searchResults } = useQuery<UserType[]>({
     queryKey: ["/api/users/search", { q: searchQuery }],
@@ -50,7 +53,7 @@ function NewChatDialog() {
         otherUserId: user.id,
       });
       const chat = await response.json();
-      setIsOpen(false);
+      setDialogOpen(false);
       window.location.href = `/chat/${chat.id}`;
     } catch (error) {
       console.error("Failed to start chat:", error);
@@ -58,10 +61,11 @@ function NewChatDialog() {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
         <Button 
           className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 hover:scale-105"
+          data-testid="button-new-chat"
         >
           <Plus size={24} />
         </Button>
@@ -75,13 +79,15 @@ function NewChatDialog() {
             placeholder="Search users..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            data-testid="input-search-users"
           />
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-64 overflow-y-auto" data-testid="div-search-results">
             {searchResults?.map((user: UserType) => (
               <div
                 key={user.id}
                 className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer"
                 onClick={() => handleStartChat(user)}
+                data-testid={`card-user-${user.id}`}
               >
                 <Avatar className="w-10 h-10">
                   <AvatarImage src={user.profileImageUrl || undefined} />
@@ -112,6 +118,7 @@ function NewChatDialog() {
 export function ChatList() {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   
   const { data: chats, refetch } = useQuery<ChatWithDetails[]>({
     queryKey: ["/api/chats"],
@@ -129,16 +136,22 @@ export function ChatList() {
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Chats</h1>
         <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
+            onClick={() => setIsSearchOpen(true)}
+            data-testid="button-search-users"
+          >
             <Search className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </Button>
           <Link href="/todo">
-            <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+            <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full" data-testid="link-todo">
               <CheckSquare className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </Button>
           </Link>
           <Link href="/profile">
-            <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+            <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full" data-testid="link-profile">
               <Avatar className="w-6 h-6">
                 <AvatarImage src={user?.profileImageUrl || undefined} />
                 <AvatarFallback className="bg-blue-600 text-white text-xs">
@@ -152,6 +165,7 @@ export function ChatList() {
             size="sm" 
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"
             onClick={toggleTheme}
+            data-testid="button-toggle-theme"
           >
             {theme === "light" ? (
               <Moon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -219,7 +233,7 @@ export function ChatList() {
         )}
       </div>
 
-      <NewChatDialog />
+      <NewChatDialog isOpen={isSearchOpen} setIsOpen={setIsSearchOpen} />
     </div>
   );
 }
