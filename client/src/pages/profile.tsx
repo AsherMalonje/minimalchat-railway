@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Camera, QrCode } from "lucide-react";
+import QRCode from "qrcode";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ export default function Profile() {
     colorTag: "#2563eb",
   });
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
 
   // Initialize form data when user loads
   useEffect(() => {
@@ -55,6 +57,32 @@ export default function Profile() {
         username: user.username || "",
         bio: user.bio || "",
         colorTag: user.colorTag || "#2563eb",
+      });
+    }
+  }, [user]);
+
+  // Generate QR code when user data is available
+  useEffect(() => {
+    if (user) {
+      const contactData = {
+        name: user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`
+          : user.username || user.email,
+        email: user.email,
+        userId: user.id
+      };
+      
+      QRCode.toDataURL(JSON.stringify(contactData), {
+        width: 128,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      }).then(url => {
+        setQrCodeDataUrl(url);
+      }).catch(err => {
+        console.error('Error generating QR code:', err);
       });
     }
   }, [user]);
@@ -277,8 +305,17 @@ export default function Profile() {
                 <Label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Your QR Code
                 </Label>
-                <div className="w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-lg mx-auto flex items-center justify-center mb-3">
-                  <QrCode className="w-16 h-16 text-gray-400" />
+                <div className="w-32 h-32 bg-white rounded-lg mx-auto flex items-center justify-center mb-3 border border-gray-200">
+                  {qrCodeDataUrl ? (
+                    <img 
+                      src={qrCodeDataUrl} 
+                      alt="User contact QR code" 
+                      className="w-full h-full"
+                      data-testid="qr-code-image"
+                    />
+                  ) : (
+                    <QrCode className="w-16 h-16 text-gray-400" />
+                  )}
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Share this QR code for quick contact add
@@ -294,21 +331,8 @@ export default function Profile() {
                   id="dark-mode"
                   checked={theme === "dark"}
                   onCheckedChange={toggleTheme}
+                  data-testid="switch-dark-mode"
                 />
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-600">
-                <span className="text-gray-900 dark:text-white">Privacy & Security</span>
-                <Button variant="ghost" size="sm" className="text-gray-400">
-                  <ArrowLeft className="w-4 h-4 rotate-180" />
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-gray-200 dark:border-gray-600">
-                <span className="text-gray-900 dark:text-white">Data & Storage</span>
-                <Button variant="ghost" size="sm" className="text-gray-400">
-                  <ArrowLeft className="w-4 h-4 rotate-180" />
-                </Button>
               </div>
             </div>
 
