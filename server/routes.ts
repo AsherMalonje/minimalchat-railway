@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./googleAuth";
 import { insertMessageSchema, updateUserSchema } from "@shared/schema";
@@ -212,5 +213,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // WebSocket server for WebRTC signaling (use a specific path to avoid conflict with Vite)
+  const wss = new WebSocketServer({ 
+    server: httpServer,
+    path: '/ws-signaling'
+  });
+  
+  // Store active connections and calls
+  const connections = new Map<string, any>(); // userId -> WebSocket
+  const activeCalls = new Map<string, {
+    callId: string;
+    callerId: string;
+    receiverId: string;
+    type: 'voice' | 'video';
+    status: 'ringing' | 'active' | 'ended';
+  }>();
+  
+  wss.on('connection', (ws, req) => {
+    let userId: string | null = null;
+    
+    ws.on('message', async (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        
+        switch (message.type) {
+          case 'register':
+            userId = message.userId;
+            connections.set(userId, ws);
+            console.log(`User ${userId} connected to WebSocket`);
+            break;
+            
+          case 'call-offer':
+            const { receiverId, offer, callType } = message;
+            const callId = Math.random().toString(36).substring(7);
+            
+            // Store call info
+            activeCalls.set(callId, {
+              callId,
+              callerId: userId!,
+              receiverId,
+              type: callType,
+              status: 'ringing'
+            });
+            
+            // Send callId back to caller
+            ws.send(JSON.stringify({
+              type: 'call-initiated',
+              callId
+            }));
+            
+            // Send call offer to receiver
+            const receiverWs = connections.get(receiverId);
+            if (receiverWs && receiverWs.readyState === WebSocket.OPEN) {
+              receiverWs.send(JSON.stringify({
+                type: 'incoming-call',
+                callId,
+                callerId: userId,
+                callerName: message.callerName,
+                callType,
+                offer
+              }));
+            } else {
+              // Receiver not online
+              ws.send(JSON.stringify({
+                type: 'call-failed',
+                reason: 'User not available'
+              }));
+            }
+            break;
+            
+          case 'call-answer':
+            const answerCallId = message.callId;
+            const call = activeCalls.get(answerCallId);
+            if (call) {
+              call.status = 'active';
+              
+              // Send answer to caller
+              const callerWs = connections.get(call.callerId);
+              if (callerWs && callerWs.readyState === WebSocket.OPEN) {
+                callerWs.send(JSON.stringify({
+                  type: 'call-answered',
+                  callId: answerCallId,
+                  answer: message.answer
+                }));
+              }
+            }
+            break;
+            
+          case 'call-reject':
+          case 'call-end':
+            const endCallId = message.callId;
+            const endCall = activeCalls.get(endCallId);
+            if (endCall) {
+              endCall.status = 'ended';
+              
+              // Notify the other participant
+              const otherUserId = endCall.callerId === userId ? endCall.receiverId : endCall.callerId;
+              const otherWs = connections.get(otherUserId);
+              if (otherWs && otherWs.readyState === WebSocket.OPEN) {
+                otherWs.send(JSON.stringify({
+                  type: message.type === 'call-reject' ? 'call-rejected' : 'call-ended',
+                  callId: endCallId
+                }));
+              }
+              
+              activeCalls.delete(endCallId);
+            }
+            break;
+            
+          case 'ice-candidate':
+            const candidateCallId = message.callId;
+            const candidateCall = activeCalls.get(candidateCallId);
+            if (candidateCall) {
+              // Forward ICE candidate to the other participant
+              const otherUserId = candidateCall.callerId === userId ? candidateCall.receiverId : candidateCall.callerId;
+              const otherWs = connections.get(otherUserId);
+              if (otherWs && otherWs.readyState === WebSocket.OPEN) {
+                otherWs.send(JSON.stringify({
+                  type: 'ice-candidate',
+                  callId: candidateCallId,
+                  candidate: message.candidate
+                }));
+              }
+            }
+            break;
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      if (userId) {
+        connections.delete(userId);
+        console.log(`User ${userId} disconnected from WebSocket`);
+        
+        // End any active calls for this user
+        for (const [callId, call] of activeCalls.entries()) {
+          if (call.callerId === userId || call.receiverId === userId) {
+            const otherUserId = call.callerId === userId ? call.receiverId : call.callerId;
+            const otherWs = connections.get(otherUserId);
+            if (otherWs && otherWs.readyState === WebSocket.OPEN) {
+              otherWs.send(JSON.stringify({
+                type: 'call-ended',
+                callId,
+                reason: 'User disconnected'
+              }));
+            }
+            activeCalls.delete(callId);
+          }
+        }
+      }
+    });
+  });
+  
   return httpServer;
 }

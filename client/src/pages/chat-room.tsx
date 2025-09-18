@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageBubble } from "@/components/message-bubble";
 import { MessageInput } from "@/components/message-input";
+import { CallManager, CallButtons } from "@/components/call-manager";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -89,6 +90,11 @@ export default function ChatRoom() {
     refetchMessages();
   };
 
+  const handleStartCall = (receiverId: string, receiverName: string, callType: 'voice' | 'video') => {
+    // Call functionality is handled by CallManager component
+    console.log(`Starting ${callType} call with ${receiverName}`);
+  };
+
   if (!chatId || !user) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
@@ -136,12 +142,16 @@ export default function ChatRoom() {
         </div>
         
         <div className="flex items-center space-x-2">
-          <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
-            <Phone className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          </Button>
-          <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
-            <Video className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          </Button>
+          {otherUser && (
+            <CallButtons
+              userId={otherUser.id}
+              userName={otherUser.firstName && otherUser.lastName 
+                ? `${otherUser.firstName} ${otherUser.lastName}`
+                : otherUser.username || otherUser.email
+              }
+              onStartCall={handleStartCall}
+            />
+          )}
           <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
             <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </Button>
@@ -176,6 +186,15 @@ export default function ChatRoom() {
 
       {/* Message Input */}
       <MessageInput chatId={chatId} onMessageSent={handleMessageSent} />
+      
+      {/* Call Manager */}
+      <CallManager 
+        currentUserId={user.id} 
+        currentUserName={user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}`
+          : user.username || user.email
+        }
+      />
     </div>
   );
 }
