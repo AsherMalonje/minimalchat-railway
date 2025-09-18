@@ -14,9 +14,14 @@ export function MessageInput({ chatId, onMessageSent }: MessageInputProps) {
   const [isWhisperMode, setIsWhisperMode] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout>();
 
   // Handle typing indicator
   useEffect(() => {
@@ -102,6 +107,87 @@ export function MessageInput({ chatId, onMessageSent }: MessageInputProps) {
     }
   };
 
+  // Voice recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await sendVoiceMessage(audioBlob);
+        
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Failed to start recording:", error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    }
+  };
+
+  const sendVoiceMessage = async (audioBlob: Blob) => {
+    setIsSending(true);
+    
+    try {
+      // Convert audio to base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = (reader.result as string).split(',')[1];
+        
+        await apiRequest("POST", `/api/chats/${chatId}/messages`, {
+          content: base64Audio,
+          messageType: "voice",
+          isWhisper: isWhisperMode,
+          toUserId: "", // This will be filled by the backend based on chatId
+        });
+        
+        onMessageSent();
+      };
+      reader.readAsDataURL(audioBlob);
+    } catch (error) {
+      console.error("Failed to send voice message:", error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Format recording time
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
       <div className="flex items-end space-x-3">
@@ -146,8 +232,15 @@ export function MessageInput({ chatId, onMessageSent }: MessageInputProps) {
           <Button 
             variant="ghost" 
             size="sm" 
-            className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600"
-            title="Voice Message"
+            className={`p-2 transition-colors ${
+              isRecording 
+                ? "text-red-500 hover:text-red-600 bg-red-50 dark:bg-red-900/20" 
+                : "text-gray-500 dark:text-gray-400 hover:text-blue-600"
+            }`}
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={isSending}
+            title={isRecording ? "Stop Recording" : "Voice Message"}
+            data-testid="button-voice-record"
           >
             <Mic className="w-5 h-5" />
           </Button>
@@ -166,6 +259,14 @@ export function MessageInput({ chatId, onMessageSent }: MessageInputProps) {
       {isWhisperMode && (
         <div className="mt-2 text-xs text-purple-500 dark:text-purple-400 text-center">
           Whisper mode: Messages will self-destruct in 10 seconds
+        </div>
+      )}
+      
+      {isRecording && (
+        <div className="mt-2 flex items-center justify-center space-x-2">
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+          <span className="text-sm text-red-500 font-medium">Recording... {formatTime(recordingTime)}</span>
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
         </div>
       )}
     </div>

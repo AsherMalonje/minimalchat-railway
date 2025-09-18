@@ -1,5 +1,6 @@
+import { useState, useRef, useEffect } from "react";
 import { format } from "date-fns";
-import { Check, CheckCheck, Clock, Play } from "lucide-react";
+import { Check, CheckCheck, Clock, Play, Pause } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MessageWithUser, User } from "@shared/schema";
@@ -16,6 +17,95 @@ function UserInitials({ user }: { user: User }) {
     : user.username || user.email || "U";
   
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function VoiceMessagePlayer({ audioData, isOwn }: { audioData: string; isOwn: boolean }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Create audio element from base64 data
+    const audio = new Audio(`data:audio/webm;base64,${audioData}`);
+    audioRef.current = audio;
+
+    audio.addEventListener('loadedmetadata', () => {
+      setDuration(audio.duration);
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      setCurrentTime(audio.currentTime);
+    });
+
+    audio.addEventListener('ended', () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    });
+
+    return () => {
+      audio.pause();
+      audio.src = '';
+    };
+  }, [audioData]);
+
+  const togglePlayback = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div className="flex items-center space-x-3">
+      <Button 
+        size="sm" 
+        className={`w-8 h-8 rounded-full p-0 ${
+          isOwn 
+            ? "bg-white/20 hover:bg-white/30" 
+            : "bg-blue-600 hover:bg-blue-700"
+        }`}
+        onClick={togglePlayback}
+        data-testid="button-voice-play"
+      >
+        {isPlaying ? (
+          <Pause className="w-3 h-3 text-white" />
+        ) : (
+          <Play className="w-3 h-3 text-white" />
+        )}
+      </Button>
+      <div className="flex-1">
+        <div className={`h-1 rounded-full overflow-hidden ${
+          isOwn ? "bg-white/30" : "bg-gray-200 dark:bg-gray-600"
+        }`}>
+          <div 
+            className={`h-full rounded-full transition-all duration-100 ${
+              isOwn ? "bg-white" : "bg-blue-600"
+            }`}
+            style={{ width: `${progress}%` }}
+          ></div>
+        </div>
+        <span className={`text-xs mt-1 ${
+          isOwn ? "text-white/80" : "text-gray-500 dark:text-gray-400"
+        }`}>
+          {formatTime(currentTime)} / {formatTime(duration)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export function MessageBubble({ message, isOwn, currentUser }: MessageBubbleProps) {
@@ -36,17 +126,7 @@ export function MessageBubble({ message, isOwn, currentUser }: MessageBubbleProp
             }}
           >
             {message.messageType === "voice" ? (
-              <div className="flex items-center space-x-3">
-                <Button size="sm" className="w-8 h-8 bg-white/20 rounded-full p-0">
-                  <Play className="w-3 h-3 text-white" />
-                </Button>
-                <div className="flex-1">
-                  <div className="h-1 bg-white/30 rounded-full overflow-hidden">
-                    <div className="h-full bg-white w-1/3 rounded-full"></div>
-                  </div>
-                  <span className="text-xs text-white/80 mt-1">0:23</span>
-                </div>
-              </div>
+              <VoiceMessagePlayer audioData={message.content} isOwn={true} />
             ) : (
               <p>{message.content}</p>
             )}
@@ -81,17 +161,7 @@ export function MessageBubble({ message, isOwn, currentUser }: MessageBubbleProp
       <div className="flex flex-col max-w-xs">
         <div className="bg-white dark:bg-gray-800 rounded-lg rounded-tl-none px-4 py-2 shadow-sm">
           {message.messageType === "voice" ? (
-            <div className="flex items-center space-x-3">
-              <Button size="sm" className="w-8 h-8 bg-blue-600 rounded-full p-0">
-                <Play className="w-3 h-3 text-white" />
-              </Button>
-              <div className="flex-1">
-                <div className="h-1 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-600 w-1/3 rounded-full"></div>
-                </div>
-                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">0:23</span>
-              </div>
-            </div>
+            <VoiceMessagePlayer audioData={message.content} isOwn={false} />
           ) : (
             <p className="text-gray-900 dark:text-white">{message.content}</p>
           )}
