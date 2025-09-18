@@ -40,13 +40,13 @@ export default function ChatRoom() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [otherUser, setOtherUser] = useState<any>(null);
 
-  const { data: messages, refetch: refetchMessages, error: messagesError } = useQuery({
+  const { data: messages, refetch: refetchMessages, error: messagesError } = useQuery<MessageWithUser[]>({
     queryKey: ["/api/chats", chatId, "messages"],
     refetchInterval: 2000, // Poll every 2 seconds for new messages
     enabled: !!chatId,
   });
 
-  const { data: typingIndicators } = useQuery({
+  const { data: typingIndicators } = useQuery<TypingIndicator[]>({
     queryKey: ["/api/chats", chatId, "typing"],
     refetchInterval: 1000, // Poll every second for typing indicators
     enabled: !!chatId,
@@ -68,7 +68,7 @@ export default function ChatRoom() {
 
   // Get other user from messages
   useEffect(() => {
-    if (messages && messages.length > 0 && user) {
+    if (messages && Array.isArray(messages) && messages.length > 0 && user) {
       const firstMessage = messages[0];
       const other = firstMessage.fromUser.id === user.id 
         ? messages.find(m => m.fromUser.id !== user.id)?.fromUser
@@ -150,7 +150,7 @@ export default function ChatRoom() {
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
-        {messages && messages.length > 0 ? (
+        {messages && Array.isArray(messages) && messages.length > 0 ? (
           messages.map((message: MessageWithUser) => (
             <MessageBubble
               key={message.id}
@@ -169,7 +169,7 @@ export default function ChatRoom() {
         )}
         
         {/* Typing Indicator */}
-        {typingIndicators && typingIndicators.length > 0 && <TypingIndicator />}
+        {typingIndicators && Array.isArray(typingIndicators) && typingIndicators.length > 0 && <TypingIndicator />}
         
         <div ref={messagesEndRef} />
       </div>
