@@ -108,7 +108,7 @@ export class MemStorage implements IStorage {
 
   async getOrCreateChat(user1Id: string, user2Id: string): Promise<Chat> {
     // Find existing chat
-    for (const chat of this.chats.values()) {
+    for (const [_, chat] of this.chats.entries()) {
       if ((chat.user1Id === user1Id && chat.user2Id === user2Id) ||
           (chat.user1Id === user2Id && chat.user2Id === user1Id)) {
         return chat;
@@ -131,7 +131,7 @@ export class MemStorage implements IStorage {
   async getUserChats(userId: string): Promise<ChatWithDetails[]> {
     const userChats: ChatWithDetails[] = [];
     
-    for (const chat of this.chats.values()) {
+    for (const [_, chat] of this.chats.entries()) {
       if (chat.user1Id === userId || chat.user2Id === userId) {
         const otherUserId = chat.user1Id === userId ? chat.user2Id : chat.user1Id;
         const otherUser = this.users.get(otherUserId);
@@ -154,7 +154,7 @@ export class MemStorage implements IStorage {
       }
     }
 
-    return userChats.sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime());
+    return userChats.sort((a, b) => (b.lastMessageAt || new Date(0)).getTime() - (a.lastMessageAt || new Date(0)).getTime());
   }
 
   // Message operations
@@ -194,7 +194,7 @@ export class MemStorage implements IStorage {
          (msg.fromUserId === chat.user2Id && msg.toUserId === chat.user1Id)) &&
         (!msg.isWhisper || (msg.whisperExpiresAt && msg.whisperExpiresAt > new Date()))
       )
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .sort((a, b) => (b.createdAt || new Date(0)).getTime() - (a.createdAt || new Date(0)).getTime())
       .slice(offset, offset + limit)
       .map(message => {
         const fromUser = this.users.get(message.fromUserId);
@@ -212,7 +212,7 @@ export class MemStorage implements IStorage {
     const chat = this.chats.get(chatId);
     if (!chat) return;
 
-    for (const message of this.messages.values()) {
+    for (const [_, message] of this.messages.entries()) {
       if (message.toUserId === userId && 
           ((message.fromUserId === chat.user1Id && message.toUserId === chat.user2Id) ||
            (message.fromUserId === chat.user2Id && message.toUserId === chat.user1Id)) &&
@@ -256,7 +256,7 @@ export class MemStorage implements IStorage {
     return Array.from(this.typingIndicators.values()).filter(indicator =>
       indicator.chatId === chatId &&
       indicator.userId !== excludeUserId &&
-      indicator.createdAt > fiveSecondsAgo
+      (indicator.createdAt || new Date(0)) > fiveSecondsAgo
     );
   }
 
@@ -264,7 +264,7 @@ export class MemStorage implements IStorage {
     const fiveSecondsAgo = new Date(Date.now() - 5 * 1000);
     
     for (const [key, indicator] of this.typingIndicators.entries()) {
-      if (indicator.createdAt <= fiveSecondsAgo) {
+      if ((indicator.createdAt || new Date(0)) <= fiveSecondsAgo) {
         this.typingIndicators.delete(key);
       }
     }
@@ -298,6 +298,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    if (!db) throw new Error("Database not available");
     const [user] = await db
       .insert(users)
       .values(userData)
@@ -313,6 +314,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: UpdateUser): Promise<User> {
+    if (!db) throw new Error("Database not available");
     const [user] = await db
       .update(users)
       .set({ ...updates, updatedAt: new Date() })
@@ -322,6 +324,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserOnlineStatus(id: string, isOnline: boolean): Promise<void> {
+    if (!db) throw new Error("Database not available");
     await db
       .update(users)
       .set({ 
@@ -334,11 +337,13 @@ export class DatabaseStorage implements IStorage {
 
   // Chat operations
   async getChatById(chatId: string): Promise<Chat | undefined> {
+    if (!db) throw new Error("Database not available");
     const [chat] = await db.select().from(chats).where(eq(chats.id, chatId));
     return chat;
   }
 
   async getOrCreateChat(user1Id: string, user2Id: string): Promise<Chat> {
+    if (!db) throw new Error("Database not available");
     // Try to find existing chat
     const [existingChat] = await db
       .select()
@@ -367,6 +372,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserChats(userId: string): Promise<ChatWithDetails[]> {
+    if (!db) throw new Error("Database not available");
     const userChats = await db
       .select({
         chat: chats,
@@ -394,6 +400,7 @@ export class DatabaseStorage implements IStorage {
 
   // Message operations
   async createMessage(messageData: InsertMessage & { fromUserId: string }): Promise<Message> {
+    if (!db) throw new Error("Database not available");
     const [message] = await db
       .insert(messages)
       .values({
@@ -418,6 +425,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getChatMessages(chatId: string, limit = 50, offset = 0): Promise<MessageWithUser[]> {
+    if (!db) throw new Error("Database not available");
     const chat = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1);
     if (!chat.length) return [];
 
@@ -456,6 +464,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markMessagesAsSeen(chatId: string, userId: string): Promise<void> {
+    if (!db) throw new Error("Database not available");
     const chat = await db.select().from(chats).where(eq(chats.id, chatId)).limit(1);
     if (!chat.length) return;
 
@@ -477,6 +486,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteExpiredWhisperMessages(): Promise<void> {
+    if (!db) throw new Error("Database not available");
     await db
       .delete(messages)
       .where(
@@ -489,6 +499,7 @@ export class DatabaseStorage implements IStorage {
 
   // Typing indicators
   async setTypingIndicator(userId: string, chatId: string, isTyping: boolean): Promise<void> {
+    if (!db) throw new Error("Database not available");
     if (isTyping) {
       await db
         .insert(typingIndicators)
@@ -510,6 +521,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTypingIndicators(chatId: string, excludeUserId: string): Promise<TypingIndicator[]> {
+    if (!db) throw new Error("Database not available");
     return await db
       .select()
       .from(typingIndicators)
@@ -523,6 +535,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async cleanupOldTypingIndicators(): Promise<void> {
+    if (!db) throw new Error("Database not available");
     await db
       .delete(typingIndicators)
       .where(sql`${typingIndicators.createdAt} <= NOW() - INTERVAL '5 seconds'`);
@@ -530,6 +543,7 @@ export class DatabaseStorage implements IStorage {
 
   // Search
   async searchUsers(query: string, excludeUserId: string): Promise<User[]> {
+    if (!db) throw new Error("Database not available");
     return await db
       .select()
       .from(users)
@@ -548,4 +562,5 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Conditionally use database or memory storage based on availability
+export const storage: IStorage = db ? new DatabaseStorage() : new MemStorage();
