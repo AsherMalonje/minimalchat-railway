@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, sql, count, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 export interface IStorage {
   // User operations
@@ -108,7 +109,7 @@ export class MemStorage implements IStorage {
 
   async getOrCreateChat(user1Id: string, user2Id: string): Promise<Chat> {
     // Find existing chat
-    for (const [_, chat] of this.chats.entries()) {
+    for (const chat of Array.from(this.chats.values())) {
       if ((chat.user1Id === user1Id && chat.user2Id === user2Id) ||
           (chat.user1Id === user2Id && chat.user2Id === user1Id)) {
         return chat;
@@ -131,7 +132,7 @@ export class MemStorage implements IStorage {
   async getUserChats(userId: string): Promise<ChatWithDetails[]> {
     const userChats: ChatWithDetails[] = [];
     
-    for (const [_, chat] of this.chats.entries()) {
+    for (const chat of Array.from(this.chats.values())) {
       if (chat.user1Id === userId || chat.user2Id === userId) {
         const otherUserId = chat.user1Id === userId ? chat.user2Id : chat.user1Id;
         const otherUser = this.users.get(otherUserId);
@@ -212,7 +213,7 @@ export class MemStorage implements IStorage {
     const chat = this.chats.get(chatId);
     if (!chat) return;
 
-    for (const [_, message] of this.messages.entries()) {
+    for (const message of Array.from(this.messages.values())) {
       if (message.toUserId === userId && 
           ((message.fromUserId === chat.user1Id && message.toUserId === chat.user2Id) ||
            (message.fromUserId === chat.user2Id && message.toUserId === chat.user1Id)) &&
@@ -225,10 +226,14 @@ export class MemStorage implements IStorage {
 
   async deleteExpiredWhisperMessages(): Promise<void> {
     const now = new Date();
-    for (const [id, message] of this.messages.entries()) {
+    const expiredIds: string[] = [];
+    for (const [id, message] of Array.from(this.messages.entries())) {
       if (message.isWhisper && message.whisperExpiresAt && message.whisperExpiresAt <= now) {
-        this.messages.delete(id);
+        expiredIds.push(id);
       }
+    }
+    for (const id of expiredIds) {
+      this.messages.delete(id);
     }
   }
 
@@ -263,10 +268,14 @@ export class MemStorage implements IStorage {
   async cleanupOldTypingIndicators(): Promise<void> {
     const fiveSecondsAgo = new Date(Date.now() - 5 * 1000);
     
-    for (const [key, indicator] of this.typingIndicators.entries()) {
+    const expiredKeys: string[] = [];
+    for (const [key, indicator] of Array.from(this.typingIndicators.entries())) {
       if ((indicator.createdAt || new Date(0)) <= fiveSecondsAgo) {
-        this.typingIndicators.delete(key);
+        expiredKeys.push(key);
       }
+    }
+    for (const key of expiredKeys) {
+      this.typingIndicators.delete(key);
     }
   }
 
@@ -373,29 +382,57 @@ export class DatabaseStorage implements IStorage {
 
   async getUserChats(userId: string): Promise<ChatWithDetails[]> {
     if (!db) throw new Error("Database not available");
+    
+    const user1 = alias(users, 'user1');
+    const user2 = alias(users, 'user2');
+    const lastMsg = alias(messages, 'lastMsg');
+    
     const userChats = await db
       .select({
         chat: chats,
-        user1: users,
-        user2: users,
-        lastMessage: messages,
-        unreadCount: sql<number>`
-          CAST(COUNT(CASE WHEN ${messages.toUserId} = ${userId} AND ${messages.isSeen} = false THEN 1 END) AS INTEGER)
-        `,
+        user1: user1,
+        user2: user2,
+        lastMessage: lastMsg,
       })
       .from(chats)
-      .leftJoin(users, eq(users.id, chats.user1Id))
-      .leftJoin(messages, eq(messages.id, chats.lastMessageId))
+      .leftJoin(user1, eq(user1.id, chats.user1Id))
+      .leftJoin(user2, eq(user2.id, chats.user2Id))
+      .leftJoin(lastMsg, eq(lastMsg.id, chats.lastMessageId))
       .where(or(eq(chats.user1Id, userId), eq(chats.user2Id, userId)))
-      .groupBy(chats.id, users.id, messages.id)
       .orderBy(desc(chats.lastMessageAt));
 
-    return userChats.map(({ chat, user1, user2, lastMessage, unreadCount }) => ({
-      ...chat,
-      otherUser: chat.user1Id === userId ? user2! : user1!,
-      lastMessage: lastMessage || undefined,
-      unreadCount: unreadCount || 0,
-    }));
+    // Calculate unread count separately for each chat
+    const chatsWithDetails: ChatWithDetails[] = [];
+    
+    for (const { chat, user1: u1, user2: u2, lastMessage } of userChats) {
+      const otherUser = chat.user1Id === userId ? u2! : u1!;
+      
+      // Count unread messages for this specific chat
+      const [{ unreadCount }] = await db
+        .select({
+          unreadCount: sql<number>`CAST(COUNT(*) AS INTEGER)`,
+        })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.toUserId, userId),
+            eq(messages.isSeen, false),
+            or(
+              and(eq(messages.fromUserId, chat.user1Id), eq(messages.toUserId, chat.user2Id)),
+              and(eq(messages.fromUserId, chat.user2Id), eq(messages.toUserId, chat.user1Id))
+            )
+          )
+        );
+
+      chatsWithDetails.push({
+        ...chat,
+        otherUser,
+        lastMessage: lastMessage || undefined,
+        unreadCount: unreadCount || 0,
+      });
+    }
+
+    return chatsWithDetails;
   }
 
   // Message operations
